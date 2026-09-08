@@ -113,6 +113,8 @@ const OPERATORS_BY_KIND: Record<ColumnKind["kind"], [OperatorId, ...OperatorId[]
   list: TEXT_OPERATORS,
   map: TEXT_OPERATORS,
   number: ["=", "!=", ">", ">=", "<", "<=", "is null", "is not null"],
+  // TODO: timestamps could be compared against a date the user types
+  timestamp: ["is null", "is not null"],
   other: ["is null", "is not null"],
 };
 

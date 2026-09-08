@@ -1,3 +1,5 @@
+import type { ColumnKind } from "../types.ts";
+
 const oneDecimal = (n: number) => n.toFixed(1).replace(/\.0$/, "");
 
 export function formatRows(n: number): string {
@@ -15,9 +17,20 @@ export function formatBytes(bytes: number): string {
 }
 
 /** Stringify a DuckDB value for a table cell. */
-export function formatCell(value: unknown): string {
+export function formatCell(value: unknown, kind?: ColumnKind): string {
   if (value === null || value === undefined) return "";
+  if (kind?.kind === "timestamp" && (typeof value === "number" || typeof value === "bigint")) {
+    return formatTimestamp(value);
+  }
   if (typeof value === "bigint") return value.toString();
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
+}
+
+/**
+ * Arrow hands timestamps over as epoch milliseconds; we convert them to ISO format
+ * for display. OSM timestamps are whole seconds, so the fractional part is dropped.
+ */
+function formatTimestamp(value: number | bigint): string {
+  return new Date(Number(value)).toISOString().replace(/\.\d+Z$/, "Z");
 }

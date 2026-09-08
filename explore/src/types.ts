@@ -25,6 +25,7 @@ export type DrawTool = "rectangle" | "polygon";
 export type ColumnKind =
   | { kind: "text" }
   | { kind: "number" }
+  | { kind: "timestamp" }
   | { kind: "list"; element: ColumnKind }
   | { kind: "map"; value: ColumnKind }
   | { kind: "other" };

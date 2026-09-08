@@ -29,8 +29,15 @@ describe("columnKind", () => {
     ).toEqual({ kind: "number" });
     expect(columnKind({ name: "h", type: "double" })).toEqual({ kind: "number" });
     expect(columnKind({ name: "when", type: "int64", annotation: "timestamp" })).toEqual({
-      kind: "other",
+      kind: "timestamp",
     });
+    expect(
+      columnKind({
+        name: "when",
+        type: "int64",
+        annotation: "timestamp(isadjustedtoutc=true, timeunit=microseconds)",
+      }),
+    ).toEqual({ kind: "timestamp" });
   });
 
   it("descends into lists and maps", () => {

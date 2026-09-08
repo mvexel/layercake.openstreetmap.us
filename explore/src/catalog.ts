@@ -107,6 +107,7 @@ export function columnKind(field: SchemaField | undefined): ColumnKind {
 
 function scalarKind(field: LeafField): ColumnKind {
   if (field.annotation === "string") return { kind: "text" };
+  if (field.annotation?.startsWith("timestamp")) return { kind: "timestamp" };
   return /^(int|float|double|decimal)/.test(field.annotation ?? field.type)
     ? { kind: "number" }
     : { kind: "other" };

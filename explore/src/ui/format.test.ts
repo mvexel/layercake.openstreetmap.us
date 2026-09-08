@@ -27,4 +27,11 @@ describe("formatCell", () => {
     expect(formatCell(123n)).toBe("123");
     expect(formatCell({ a: 1 })).toBe('{"a":1}');
   });
+
+  it("renders timestamps as ISO 8601", () => {
+    const kind = { kind: "timestamp" } as const;
+    expect(formatCell(1_745_260_591_000, kind)).toBe("2025-04-21T18:36:31Z");
+    expect(formatCell(1_745_260_591_000n, kind)).toBe("2025-04-21T18:36:31Z");
+    expect(formatCell(null, kind)).toBe("");
+  });
 });
