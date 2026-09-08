@@ -10,6 +10,11 @@
   {%- if page.preload_explorer %}
   <link rel="modulepreload" href="{{ '/explore/bundle.js' | relative_url }}">
   {%- endif %}
+  <script async src="https://analytics.openstreetmap.us/js/pa-c9giuUwtUxFhvG04THhNE.js"></script>
+  <script>
+    window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+    plausible.init()
+  </script>
 </head>
 <body>
   {% include nav.html %}
