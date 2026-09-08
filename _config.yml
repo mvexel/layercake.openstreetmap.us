@@ -22,7 +22,7 @@ defaults:
 
 # Columns that are structural rather than OSM tags, so nothing on the schema
 # table should link them to a wiki page.
-structural_columns: [type, id, bbox, geometry]
+structural_columns: [type, id, version, timestamp, bbox, geometry]
 
 exclude:
   - Makefile
