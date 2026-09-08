@@ -57,6 +57,7 @@ function TableBody({ store }: { store: Store }) {
     <DataTable
       features={session.features}
       columns={session.visibleColumns}
+      kinds={session.layer.kinds}
       sorts={session.sorts}
       selected={session.selected}
       hovered={session.hovered}

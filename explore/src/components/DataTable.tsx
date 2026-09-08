@@ -1,5 +1,5 @@
 import type { Context } from "@b9g/crank";
-import { type Feature, type Fid, featureFid, type Sort } from "../types.ts";
+import { type ColumnKind, type Feature, type Fid, featureFid, type Sort } from "../types.ts";
 import { formatCell } from "../ui/format.ts";
 
 // Fixed so scroll offset and row index convert exactly. Must match
@@ -7,34 +7,72 @@ import { formatCell } from "../ui/format.ts";
 const ROW_HEIGHT = 28;
 const OVERSCAN = 8;
 
-// Text width estimates, used to calculate column widths (the table's columns
-// are fixed width because the table's contents are virtualized, so we can't
-// use the normal auto-sizing layout behavior)
-const CELL_CHAR_PX = 6.6;
-const HEAD_CHAR_PX = 8.5;
+// Constants to help with table layout. The table's column widths are fixed
+// to avoid layout shift while scrolling (because its contents are virtualized).
 const CELL_PADDING_PX = 16;
-// Reserved in every header, sorted or not, so sorting a column doesn't resize
-// it and shift everything after it sideways.
-const SORT_MARKER_PX = 18;
+const SORT_MARKER_PX = 22;
 const MIN_COLUMN_PX = 56;
 const MAX_COLUMN_PX = 320;
 const WIDTH_SAMPLE = 250;
 
-function columnWidths(features: Feature[], columns: string[]): number[] {
-  const sample = features.slice(0, WIDTH_SAMPLE);
+const RULER = "0".repeat(64);
 
-  return columns.map((column) => {
+type ColumnKinds = Map<string, ColumnKind>;
+
+const el = <K extends keyof HTMLElementTagNameMap>(tag: K, ...children: HTMLElement[]) => {
+  const node = document.createElement(tag);
+  node.append(...children);
+  return node;
+};
+
+/**
+ * Measure the width of one table cell character, and of each column's header,
+ * so that we can set appropriate fixed column widths for the table.
+ */
+function textWidths(columns: string[]) {
+  const span = (className: string, text: string) => {
+    const node = document.createElement("span");
+    node.className = className;
+    node.textContent = text;
+    return node;
+  };
+
+  const cell = span("cell-text", RULER);
+  const heads = columns.map((column) => span("th-text", column));
+
+  const probe = el("table", el("thead", el("tr", ...heads.map((h) => el("th", h)))));
+  probe.append(el("tbody", el("tr", el("td", cell))));
+  probe.className = "feature-table";
+  probe.ariaHidden = "true";
+  // The class is what gives the probe the real fonts, but its fixed layout and
+  // full-width sizing would size these cells to the page rather than the text.
+  probe.style.cssText =
+    "position:absolute; visibility:hidden; table-layout:auto; width:auto; min-width:0";
+  document.body.append(probe);
+
+  const widths = {
+    char: cell.getBoundingClientRect().width / RULER.length,
+    heads: heads.map((head) => head.getBoundingClientRect().width),
+  };
+  probe.remove();
+  return widths;
+}
+
+function columnWidths(features: Feature[], columns: string[], kinds: ColumnKinds): number[] {
+  const sample = features.slice(0, WIDTH_SAMPLE);
+  const text = textWidths(columns);
+
+  return columns.map((column, i) => {
     let longest = 0;
     for (const feature of sample) {
-      const length = formatCell(feature.properties[column]).length;
+      const length = formatCell(feature.properties[column], kinds.get(column)).length;
       if (length > longest) longest = length;
     }
-    const width =
-      Math.max(column.length * HEAD_CHAR_PX + SORT_MARKER_PX, longest * CELL_CHAR_PX) +
-      CELL_PADDING_PX;
+    const head = (text.heads[i] ?? 0) + SORT_MARKER_PX;
     // Rounding down would leave the widest sampled value a fraction of a pixel
     // short and flag it as truncated when it isn't.
-    return Math.ceil(Math.min(Math.max(width, MIN_COLUMN_PX), MAX_COLUMN_PX));
+    const width = Math.ceil(Math.max(head, longest * text.char)) + CELL_PADDING_PX;
+    return Math.min(Math.max(width, MIN_COLUMN_PX), MAX_COLUMN_PX);
   });
 }
 
@@ -78,6 +116,7 @@ function HeaderCell({ column, width, sorts, onSort }: HeaderCellProps) {
 interface DataTableProps {
   features: Feature[];
   columns: string[];
+  kinds: ColumnKinds;
   sorts: Sort[];
   selected: Fid | null;
   hovered: Fid | null;
@@ -155,7 +194,7 @@ export function* DataTable(this: Context<DataTableProps, HTMLElement>, props: Da
   this.cleanup(() => observer?.disconnect());
 
   for (props of this) {
-    const { features, columns, selected, hovered, onRowClick, onRowHover } = props;
+    const { features, columns, kinds, selected, hovered, onRowClick, onRowHover } = props;
 
     // `columns` is rebuilt on every render, so compare by value; `features` is
     // stable between fetches and can be compared by identity.
@@ -164,7 +203,7 @@ export function* DataTable(this: Context<DataTableProps, HTMLElement>, props: Da
       if (features !== lastFeatures) resetScroll();
       lastFeatures = features;
       lastColumnKey = columnKey;
-      widths = columnWidths(features, columns);
+      widths = columnWidths(features, columns, kinds);
       totalWidth = widths.reduce((sum, w) => sum + w, 0);
     }
 
@@ -235,7 +274,9 @@ export function* DataTable(this: Context<DataTableProps, HTMLElement>, props: Da
                   >
                     {columns.map((c) => (
                       <td>
-                        <span class="cell-text">{formatCell(feature.properties[c])}</span>
+                        <span class="cell-text">
+                          {formatCell(feature.properties[c], kinds.get(c))}
+                        </span>
                       </td>
                     ))}
                   </tr>
