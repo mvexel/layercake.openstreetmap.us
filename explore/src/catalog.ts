@@ -11,6 +11,7 @@ export const LAYER_IDS = [
   "pois",
   "settlements",
   "waterways",
+  "wetlands",
 ] as const;
 
 export type LayerId = (typeof LAYER_IDS)[number];
