@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { ColumnKind, Filter } from "../types.ts";
-import { defaultOperator, filterComplete, filterTerms, needsKey, operatorsFor } from "./filters.ts";
+import {
+  defaultOperator,
+  filterComplete,
+  filterSummary,
+  filterTerms,
+  needsKey,
+  operatorsFor,
+} from "./filters.ts";
 
 const TEXT: ColumnKind = { kind: "text" };
 const NUMBER: ColumnKind = { kind: "number" };
@@ -172,5 +179,42 @@ describe("combining filters", () => {
       `"amenity" = 'restaurant'`,
       `"wheelchair" = 'yes'`,
     ]);
+  });
+});
+
+describe("summarizing combined filters", () => {
+  const complete = (...filters: Filter[]) => {
+    if (!filters.every(filterComplete)) throw new Error("filter is incomplete");
+    return filters;
+  };
+  const cafe = filter({ column: "amenity", value: "cafe" });
+  const bar = filter({ column: "amenity", value: "bar", join: "or" });
+  const seating = filter({
+    column: "other_tags",
+    kind: TEXT_MAP,
+    key: "outdoor_seating",
+    value: "yes",
+  });
+  const named = filter({ column: "name", operator: "is not null" });
+
+  it("spells out the grouping when and and or are mixed", () => {
+    expect(filterSummary(complete(cafe, bar, seating))).toBe(
+      "(amenity = cafe or amenity = bar) and other_tags.outdoor_seating = yes",
+    );
+    expect(filterSummary(complete(seating, cafe, bar))).toBe(
+      "other_tags.outdoor_seating = yes and (amenity = cafe or amenity = bar)",
+    );
+  });
+
+  it("leaves out the value for operators without one", () => {
+    expect(filterSummary(complete(cafe, bar, named))).toBe(
+      "(amenity = cafe or amenity = bar) and name is not null",
+    );
+  });
+
+  it("stays quiet when only one kind of join is used", () => {
+    expect(filterSummary(complete(cafe, seating))).toBeNull();
+    expect(filterSummary(complete(cafe, bar))).toBeNull();
+    expect(filterSummary(complete(cafe))).toBeNull();
   });
 });

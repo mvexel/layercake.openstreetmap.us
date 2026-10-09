@@ -1,4 +1,4 @@
-import { needsKey, operatorsFor } from "../query/filters.ts";
+import { filterSummary, needsKey, operatorsFor } from "../query/filters.ts";
 import type { Store } from "../store.ts";
 import type { Filter } from "../types.ts";
 
@@ -101,9 +101,31 @@ function FilterRow({
   );
 }
 
+const LOGICAL_OPERATORS_DOCS = "https://duckdb.org/docs/current/sql/expressions/logical_operators";
+const NULL_LOGIC_DOCS = "https://duckdb.org/docs/current/sql/data_types/nulls#null-and-and--or";
+
+/**
+ * Spells out how mixed and/or filters group. Plain SQL gives AND precedence
+ * over OR, the opposite of this bar, so the grouping is worth stating.
+ */
+function FilterSummary({ summary }: { summary: string }) {
+  return (
+    <div class="filter-summary">
+      <span class="filter-word">Matches</span> <code>{summary}</code>
+      <p class="filter-summary-note">
+        Filters joined by <em>or</em> are grouped first, then the groups are combined with{" "}
+        <em>and</em>; in plain SQL, <a href={LOGICAL_OPERATORS_DOCS}>AND binds first</a>. A filter
+        never matches a row where its column or tag is missing, not even with !=; see{" "}
+        <a href={NULL_LOGIC_DOCS}>NULL in AND and OR</a>. Copy SQL shows the exact query.
+      </p>
+    </div>
+  );
+}
+
 export function FilterBar({ store }: { store: Store }) {
   const session = store.session;
   if (!session || session.filters.length === 0) return null;
+  const summary = filterSummary(session.activeFilters);
 
   return (
     <div class="filter-bar">
@@ -116,6 +138,7 @@ export function FilterBar({ store }: { store: Store }) {
           first={index === 0}
         />
       ))}
+      {summary ? <FilterSummary summary={summary} /> : null}
     </div>
   );
 }
