@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { columnKind, type SchemaField } from "./catalog.ts";
+import { columnKind, parseBounds, type SchemaField } from "./catalog.ts";
 
 const list = (element: SchemaField): SchemaField => ({
   name: "names",
@@ -66,5 +66,24 @@ describe("columnKind", () => {
       kind: "list",
       element: { kind: "other" },
     });
+  });
+});
+
+describe("parseBounds", () => {
+  it("reads [xmin, ymin, xmax, ymax]", () => {
+    expect(parseBounds([-114.05, 36.99, -109.03, 42])).toEqual({
+      xmin: -114.05,
+      ymin: 36.99,
+      xmax: -109.03,
+      ymax: 42,
+    });
+  });
+
+  it("rejects anything that is not a real box", () => {
+    expect(parseBounds(undefined)).toBeNull();
+    expect(parseBounds([1, 2, 3])).toBeNull();
+    expect(parseBounds([0, 0, "1", 1])).toBeNull();
+    expect(parseBounds([1, 0, 0, 1])).toBeNull();
+    expect(parseBounds([0, 0, Number.NaN, 1])).toBeNull();
   });
 });

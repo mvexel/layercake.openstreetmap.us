@@ -1,4 +1,4 @@
-import { type ColumnKind, type Layer, RESERVED_COLUMNS } from "./types.ts";
+import { type Bounds, type ColumnKind, type Layer, RESERVED_COLUMNS } from "./types.ts";
 
 const BASE_URL =
   import.meta.env.VITE_LAYERCAKE_DATA_URL ?? "https://data.openstreetmap.us/layercake";
@@ -55,15 +55,35 @@ export async function loadCatalog(): Promise<Record<string, Layer>> {
   return Object.fromEntries(layers.map((l) => [l.id, l]));
 }
 
-/** When the Layercake data was last built, or null if unavailable. */
-export async function loadUpdatedAt(): Promise<Date | null> {
+export interface Metadata {
+  /** When the Layercake data was last built. */
+  updatedAt: Date | null;
+  /** Where the data is, on deployments that cover one region. */
+  bounds: Bounds | null;
+}
+
+/** Read metadata.json; anything missing or malformed comes back null. */
+export async function loadMetadata(): Promise<Metadata> {
   try {
-    const { timestamp } = await getJSON<{ timestamp: string }>(`${BASE_URL}/metadata.json`);
-    const date = new Date(timestamp);
-    return Number.isNaN(date.valueOf()) ? null : date;
+    const { timestamp, bounds } = await getJSON<{ timestamp?: unknown; bounds?: unknown }>(
+      `${BASE_URL}/metadata.json`,
+    );
+    const date = new Date(String(timestamp));
+    return {
+      updatedAt: Number.isNaN(date.valueOf()) ? null : date,
+      bounds: parseBounds(bounds),
+    };
   } catch {
-    return null;
+    return { updatedAt: null, bounds: null };
   }
+}
+
+/** `[xmin, ymin, xmax, ymax]` as Bounds, or null unless it is a real box. */
+export function parseBounds(value: unknown): Bounds | null {
+  if (!Array.isArray(value) || value.length !== 4) return null;
+  if (!value.every((n) => typeof n === "number" && Number.isFinite(n))) return null;
+  const [xmin, ymin, xmax, ymax] = value as [number, number, number, number];
+  return xmin < xmax && ymin < ymax ? { xmin, ymin, xmax, ymax } : null;
 }
 
 async function layerMetadata(id: LayerId): Promise<Layer> {

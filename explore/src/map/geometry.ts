@@ -1,6 +1,6 @@
 import turfArea from "@turf/area";
 import bboxPolygon from "@turf/bbox-polygon";
-import type { Position } from "geojson";
+import type { Feature as GeoJSONFeature, Polygon, Position } from "geojson";
 import type { Bounds, Feature, Fid, SimpleGeometry } from "../types.ts";
 import { FID } from "../types.ts";
 
@@ -93,4 +93,31 @@ export function renderable(features: Feature[]): RenderFeature[] {
   }
 
   return out;
+}
+
+/** The world with a hole where the data is: shades everything outside `bounds`. */
+export function outsideMask({ xmin, ymin, xmax, ymax }: Bounds): GeoJSONFeature<Polygon> {
+  return {
+    type: "Feature",
+    properties: {},
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [-180, -85],
+          [180, -85],
+          [180, 85],
+          [-180, 85],
+          [-180, -85],
+        ],
+        [
+          [xmin, ymin],
+          [xmin, ymax],
+          [xmax, ymax],
+          [xmax, ymin],
+          [xmin, ymin],
+        ],
+      ],
+    },
+  };
 }

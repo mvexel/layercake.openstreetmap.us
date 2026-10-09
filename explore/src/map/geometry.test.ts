@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type Feature, FID, type SimpleGeometry } from "../types.ts";
-import { bbox, collapseZoom, renderable } from "./geometry.ts";
+import { bbox, collapseZoom, outsideMask, renderable } from "./geometry.ts";
 
 const feature = (fid: number, geometry: SimpleGeometry): Feature => ({
   type: "Feature",
@@ -75,5 +75,21 @@ describe("renderable", () => {
 
   it("leaves polygons that are never small on screen alone", () => {
     expect(renderable([feature(4, square(40))])).toHaveLength(1);
+  });
+});
+
+describe("data bounds", () => {
+  const UTAH = { xmin: -114, ymin: 37, xmax: -109, ymax: 42 };
+
+  it("masks the world with a hole at the bounds", () => {
+    const [outer, hole] = outsideMask(UTAH).geometry.coordinates;
+    expect(outer).toHaveLength(5);
+    expect(hole).toEqual([
+      [-114, 37],
+      [-114, 42],
+      [-109, 42],
+      [-109, 37],
+      [-114, 37],
+    ]);
   });
 });

@@ -60,6 +60,25 @@ const POINT_FILTER: FilterSpecification = [
   ["all", IS_DOT, ["<", ["zoom"], ["get", "_collapseZoom"]]],
 ];
 
+export const EXTENT_SOURCE_ID = "data-extent";
+
+/** Shading outside the data's bounds and an outline along them; drawn under the features. */
+export const EXTENT_LAYERS: (
+  | Omit<FillLayerSpecification, "source">
+  | Omit<LineLayerSpecification, "source">
+)[] = [
+  {
+    id: "data-extent-mask",
+    type: "fill",
+    paint: { "fill-color": "#000000", "fill-opacity": 0.12 },
+  },
+  {
+    id: "data-extent-outline",
+    type: "line",
+    paint: { "line-color": "#000000", "line-width": 1.5, "line-dasharray": [3, 2] },
+  },
+];
+
 type FeatureLayer =
   | Omit<FillLayerSpecification, "source">
   | Omit<LineLayerSpecification, "source">

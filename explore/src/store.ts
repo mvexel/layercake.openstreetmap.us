@@ -1,4 +1,4 @@
-import { FIRST_TAG_COLUMN_INDEX, loadCatalog, loadUpdatedAt } from "./catalog.ts";
+import { FIRST_TAG_COLUMN_INDEX, loadCatalog, loadMetadata } from "./catalog.ts";
 import { DuckDB } from "./duckdb.ts";
 import { download } from "./export/download.ts";
 import type { FormatId } from "./export/formats.ts";
@@ -11,6 +11,7 @@ import { readRoute, writeRoute } from "./router.ts";
 import { Session } from "./session.ts";
 import {
   type Area,
+  type Bounds,
   type ColumnKind,
   type DrawTool,
   type Feature,
@@ -38,6 +39,8 @@ export class Store {
   catalog: Record<string, Layer> | null = null;
   catalogError: Error | null = null;
   updatedAt: Date | null = null;
+  /** Where the data is, when metadata.json says; the map is fitted and fenced to it. */
+  dataBounds: Bounds | null = null;
   engine: Engine = "starting";
   /** Set once MapLibre has loaded; non-null means fully usable. */
   map: MapView | null = null;
@@ -87,8 +90,10 @@ export class Store {
       })
       .finally(() => this.notify());
 
-    loadUpdatedAt().then((date) => {
-      this.updatedAt = date;
+    loadMetadata().then(({ updatedAt, bounds }) => {
+      this.updatedAt = updatedAt;
+      this.dataBounds = bounds;
+      if (bounds) this.map?.showDataBounds(bounds);
       this.notify();
     });
 
@@ -188,6 +193,7 @@ export class Store {
 
   setMap(view: MapView) {
     this.map = view;
+    if (this.dataBounds) view.showDataBounds(this.dataBounds);
     this.notify();
   }
 

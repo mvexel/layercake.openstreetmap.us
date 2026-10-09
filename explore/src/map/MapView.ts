@@ -9,8 +9,16 @@ import {
 import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
 import type { SimpleGeometry } from "../types.ts";
 import { type Area, type Bounds, type DrawTool, type Feature, FID, type Fid } from "../types.ts";
-import { bbox, renderable } from "./geometry.ts";
-import { BASEMAP, DRAW_STYLES, FEATURE_LAYERS, POLYGON_DRAW_STYLES, SOURCE_ID } from "./style.ts";
+import { bbox, outsideMask, renderable } from "./geometry.ts";
+import {
+  BASEMAP,
+  DRAW_STYLES,
+  EXTENT_LAYERS,
+  EXTENT_SOURCE_ID,
+  FEATURE_LAYERS,
+  POLYGON_DRAW_STYLES,
+  SOURCE_ID,
+} from "./style.ts";
 
 /** The contiguous US unless the build sets VITE_LAYERCAKE_MAP_VIEW ("lng,lat,zoom"). */
 const INITIAL_VIEW = ((): [number, number, number] => {
@@ -19,6 +27,12 @@ const INITIAL_VIEW = ((): [number, number, number] => {
     ? (view as [number, number, number])
     : [-98.5795, 39.8283, 4];
 })();
+
+/** Pixels between the data's bounds and the edge of the screen when fitted. */
+const DATA_PADDING = 20;
+
+/** MapLibre's world size in pixels at zoom 0. */
+const TILE_SIZE = 512;
 
 // click target size (half the box width/height)
 const HIT_RADIUS = 6;
@@ -47,7 +61,12 @@ export class MapView {
   private lastClick: string | null = null;
   private lastClickIndex = -1;
 
+  /** Whether the page opened at a map position from its URL, which then wins over fitting the data. */
+  private openedAtPosition = false;
+
   static async create(container: HTMLElement, events: MapViewEvents): Promise<MapView> {
+    // Read before the map exists: with `hash: true` it writes its own position to the URL.
+    const openedAtPosition = location.hash.length > 1;
     const map = new maplibregl.Map({
       container,
       style: BASEMAP,
@@ -60,7 +79,9 @@ export class MapView {
     });
     map.addControl(new maplibregl.NavigationControl());
     await map.once("load");
-    return new MapView(map, events);
+    const view = new MapView(map, events);
+    view.openedAtPosition = openedAtPosition;
+    return view;
   }
 
   private constructor(map: maplibregl.Map, events: MapViewEvents) {
@@ -146,6 +167,67 @@ export class MapView {
     this.hasShape = false;
     this.tool = tool;
     this.setMode(tool);
+  }
+
+  /**
+   * Show where the data is: shade the map outside `bounds`, open on them
+   * unless the URL named a position, and fence the view to them.
+   */
+  showDataBounds(bounds: Bounds) {
+    if (this.map.getSource(EXTENT_SOURCE_ID)) return;
+    this.map.addSource(EXTENT_SOURCE_ID, { type: "geojson", data: outsideMask(bounds) });
+    const firstFeatureLayer = FEATURE_LAYERS[0]?.id;
+    for (const layer of EXTENT_LAYERS) {
+      this.map.addLayer({ ...layer, source: EXTENT_SOURCE_ID }, firstFeatureLayer);
+    }
+
+    const { xmin, ymin, xmax, ymax } = bounds;
+    if (!this.openedAtPosition) {
+      this.map.fitBounds(
+        [
+          [xmin, ymin],
+          [xmax, ymax],
+        ],
+        { padding: DATA_PADDING, animate: false },
+      );
+    }
+    this.fenceTo(bounds);
+    this.map.on("resize", () => this.fenceTo(bounds));
+  }
+
+  /**
+   * Allow zooming out one level past the view that fits `bounds`, and panning
+   * until their edge reaches the middle of the screen. The limits depend on
+   * the canvas size, so they are recomputed when it changes.
+   */
+  private fenceTo({ xmin, ymin, xmax, ymax }: Bounds) {
+    const fit = this.map.cameraForBounds(
+      [
+        [xmin, ymin],
+        [xmax, ymax],
+      ],
+      { padding: DATA_PADDING },
+    );
+    if (fit?.zoom === undefined) return;
+    const minZoom = fit.zoom - 1;
+
+    // maxBounds keeps the whole viewport inside, so grow the box by half the
+    // viewport at minZoom: the center can then reach every edge of the data.
+    const { clientWidth, clientHeight } = this.map.getContainer();
+    const worldSize = TILE_SIZE * 2 ** minZoom;
+    const dx = clientWidth / 2 / worldSize;
+    const dy = clientHeight / 2 / worldSize;
+    const sw = maplibregl.MercatorCoordinate.fromLngLat([xmin, ymin]);
+    const ne = maplibregl.MercatorCoordinate.fromLngLat([xmax, ymax]);
+    // Mercator y grows southward.
+    const limitSw = new maplibregl.MercatorCoordinate(sw.x - dx, sw.y + dy).toLngLat();
+    const limitNe = new maplibregl.MercatorCoordinate(ne.x + dx, ne.y - dy).toLngLat();
+
+    this.map.setMinZoom(Math.max(minZoom, 0));
+    this.map.setMaxBounds([
+      [Math.max(limitSw.lng, -180), Math.max(limitSw.lat, -85)],
+      [Math.min(limitNe.lng, 180), Math.min(limitNe.lat, 85)],
+    ]);
   }
 
   viewportBounds(): Bounds {
