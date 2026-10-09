@@ -86,7 +86,7 @@ export function* Toolbar(this: Context<ToolbarProps>, props: ToolbarProps) {
             <button
               type="button"
               class={session?.drawTool === tool ? "toolbar-btn active" : "toolbar-btn"}
-              disabled={!store.map}
+              disabled={!store.map || !session}
               title={title}
               onclick={() => store.armDraw(tool)}
             >
