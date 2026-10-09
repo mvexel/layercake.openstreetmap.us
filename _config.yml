@@ -25,8 +25,11 @@ defaults:
 structural_columns: [type, id, version, timestamp, bbox, geometry]
 
 exclude:
+  - CHANGES.md
+  - Dockerfile
   - Makefile
   - README.md
+  - deploy
   - biome.json
   - dist
   - explore
