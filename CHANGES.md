@@ -37,6 +37,13 @@ The Jekyll docs site is not deployed; its links point to the official site.
   `bounds`, as on data.openstreetmap.us, nothing changes.
 - **Unofficial notice.** On unofficial builds a yellow bar above the header says
   this is not the OpenStreetMap US Layercake and links to the official page.
+- **MapRoulette features export.** With `?maproulette` in the URL, the export
+  menu also offers *MapRoulette features*: one FeatureCollection with a point on
+  each element (`ST_PointOnSurface`), its `@id`, and its tags as strings (lists
+  joined with `;`, `other_tags` merged back in; prefix maps such as `names` are
+  left out, since their original keys are lost). It is the feature format the
+  MapRoulette survey builder reads, which links here with that parameter
+  (`maprouletteSQL` in `explore/src/query/sql.ts`).
 
 ## Build-time settings
 

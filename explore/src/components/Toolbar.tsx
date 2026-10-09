@@ -1,5 +1,5 @@
 import type { Context } from "@b9g/crank";
-import { FORMATS, type FormatId } from "../export/formats.ts";
+import { FORMATS, type FormatId, offeredFormats } from "../export/formats.ts";
 import type { Session } from "../session.ts";
 import type { Store } from "../store.ts";
 import type { DrawTool } from "../types.ts";
@@ -124,8 +124,8 @@ export function* Toolbar(this: Context<ToolbarProps>, props: ToolbarProps) {
                 format = (ev.target as HTMLSelectElement).value as FormatId;
               }}
             >
-              {Object.entries(FORMATS).map(([value, spec]) => (
-                <option value={value}>{spec.label}</option>
+              {offeredFormats().map((id) => (
+                <option value={id}>{FORMATS[id].label}</option>
               ))}
             </select>
             <button

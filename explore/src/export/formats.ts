@@ -1,4 +1,4 @@
-export type FormatId = "geojson" | "shapefile" | "parquet" | "csv";
+export type FormatId = "geojson" | "maproulette" | "shapefile" | "parquet" | "csv";
 
 export interface Format {
   label: string;
@@ -25,6 +25,17 @@ export const FORMATS: Record<FormatId, Format> = {
     copyOptions: "FORMAT GDAL, DRIVER 'GeoJSON'",
     gdal: true,
     castComplex: true,
+  },
+  // What the MapRoulette survey builder reads: points with an @id and the
+  // element's tags as strings. Written by maprouletteSQL, not by GDAL.
+  maproulette: {
+    label: "MapRoulette features",
+    extension: "geojson",
+    mimeType: "application/geo+json",
+    geometry: "native",
+    copyOptions: "FORMAT JSON",
+    gdal: false,
+    castComplex: false,
   },
   shapefile: {
     label: "Shapefile (zip)",
@@ -59,6 +70,16 @@ export const FORMATS: Record<FormatId, Format> = {
   },
 };
 
+/**
+ * The formats offered in the export menu. The MapRoulette export is for
+ * MapRoulette admins, whose survey builder links here with `?maproulette`;
+ * everyone else is not shown it.
+ */
+export function offeredFormats(search: string = location.search): FormatId[] {
+  const maproulette = new URLSearchParams(search).has("maproulette");
+  return (Object.keys(FORMATS) as FormatId[]).filter((id) => id !== "maproulette" || maproulette);
+}
+
 let serial = 0;
 
 /**
@@ -73,5 +94,6 @@ export function exportPath(format: FormatId) {
 /** The name an export is offered to the browser as. */
 export function exportFilename(format: FormatId) {
   const spec = FORMATS[format];
-  return `layercake_export.${spec.archive?.extension ?? spec.extension}`;
+  const stem = format === "maproulette" ? "maproulette_features" : "layercake_export";
+  return `${stem}.${spec.archive?.extension ?? spec.extension}`;
 }

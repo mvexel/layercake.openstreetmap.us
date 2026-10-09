@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Bounds, CompleteFilter, Filter, Sort } from "../types.ts";
 import { filterComplete } from "./filters.ts";
-import { exportSQL, materializeSQL, rowsSQL, selectSQL } from "./sql.ts";
+import { exportSQL, maprouletteSQL, materializeSQL, rowsSQL, selectSQL } from "./sql.ts";
 
 const BOUNDS: Bounds = { xmin: -1.5, ymin: 50.1234567, xmax: 2, ymax: 51 };
 const URL = "https://example.com/buildings.parquet";
@@ -194,5 +194,51 @@ describe("exportSQL", () => {
     );
     expect(sql).toContain("USE_TMP_FILE false");
     expect(sql).toContain("LAYER_CREATION_OPTIONS ('ENCODING=UTF-8')");
+  });
+});
+
+describe("maprouletteSQL", () => {
+  const types = new Map([
+    ["_fid", "INTEGER"],
+    ["type", "VARCHAR"],
+    ["id", "BIGINT"],
+    ["amenity", "VARCHAR"],
+    ["name", "VARCHAR[]"],
+    ["names", "MAP(VARCHAR, VARCHAR[])"],
+    ["population", "UBIGINT"],
+    ["other_tags", "MAP(VARCHAR, VARCHAR)"],
+    ["version", "INTEGER"],
+    ["timestamp", "TIMESTAMP WITH TIME ZONE"],
+    ["geometry", "GEOMETRY"],
+  ]);
+  const sql = maprouletteSQL(
+    "features_0",
+    { filters: [complete({ column: "amenity", value: "cafe" })], sorts: [] },
+    "out.geojson",
+    types,
+  );
+
+  it("writes one FeatureCollection of points with an @id", () => {
+    expect(sql).toContain("'FeatureCollection' AS type");
+    expect(sql).toContain("ST_AsGeoJSON(ST_PointOnSurface(geometry))");
+    expect(sql).toContain(`MAP {'@id': "type" || '/' || CAST("id" AS VARCHAR)}`);
+    expect(sql).toContain("TO 'out.geojson' WITH (FORMAT JSON);");
+  });
+
+  it("turns tag columns back into tag strings and merges other_tags", () => {
+    expect(sql).toContain(
+      `MAP {'amenity': "amenity", 'name': array_to_string("name", ';'), 'population': CAST("population" AS VARCHAR)}`,
+    );
+    expect(sql).toContain(`coalesce("other_tags", MAP {}::MAP(VARCHAR, VARCHAR))`);
+  });
+
+  it("leaves out columns that are not tags and prefix maps it cannot restore", () => {
+    for (const column of ["'version'", "'timestamp'", "'names'", "'_fid'", "'geometry'"]) {
+      expect(sql).not.toContain(`${column}:`);
+    }
+  });
+
+  it("applies the filters", () => {
+    expect(sql).toContain(`WHERE "amenity" = 'cafe'`);
   });
 });

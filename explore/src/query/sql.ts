@@ -109,6 +109,72 @@ function exportProjection(columns: string[] | null, sqlTypes: Map<string, string
   );
 }
 
+/** Columns that describe the element rather than holding one of its tags. */
+const NOT_TAGS = new Set([
+  ...CACHE_RESERVED,
+  ...RESERVED_COLUMNS,
+  "type",
+  "id",
+  "version",
+  "timestamp",
+]);
+
+/**
+ * Each tag column as a VARCHAR expression keyed by its tag, or null when the
+ * column cannot be turned back into one tag: prefix maps such as `names`
+ * strip their prefix, so the original keys are lost.
+ */
+function tagValue(name: string, type: string): string | null {
+  if (type === "VARCHAR") return ident(name);
+  if (type === "VARCHAR[]") return `array_to_string(${ident(name)}, ';')`;
+  if (/^(U?(TINY|SMALL|BIG|HUGE)?INT(EGER)?|FLOAT|DOUBLE|DECIMAL)/i.test(type)) {
+    return `CAST(${ident(name)} AS VARCHAR)`;
+  }
+  return null;
+}
+
+/**
+ * Builds a query writing the rows as the FeatureCollection the MapRoulette
+ * survey builder reads: a point on each element, its `@id`, and its tags as
+ * strings. Lists are joined with ';' as in OSM, `other_tags` is merged back
+ * in, and empty tags are left out.
+ */
+export function maprouletteSQL(
+  table: string,
+  q: { filters: CompleteFilter[]; sorts: Sort[] },
+  path: string,
+  sqlTypes: Map<string, string>,
+): string {
+  const columns = [...sqlTypes].filter(([name]) => !NOT_TAGS.has(name) && name !== "other_tags");
+  const tags = columns.flatMap(([name, type]) => {
+    const value = tagValue(name, type);
+    return value === null ? [] : [`${text(name)}: ${value}`];
+  });
+  const maps = [
+    `MAP {'@id': "type" || '/' || CAST("id" AS VARCHAR)}`,
+    ...(tags.length ? [`MAP {${tags.join(", ")}}`] : []),
+    ...(sqlTypes.has("other_tags")
+      ? [`coalesce("other_tags", MAP {}::MAP(VARCHAR, VARCHAR))`]
+      : []),
+  ];
+  const properties = `to_json(map_from_entries(list_filter(map_entries(map_concat(${maps.join(", ")})), lambda e: e.value IS NOT NULL AND e.value != '')))`;
+  const feature = `json_object('type', 'Feature', 'geometry', ST_AsGeoJSON(ST_PointOnSurface(geometry))::JSON, 'properties', ${properties})`;
+  const order = orderTerms(q.sorts, { tiebreak: FID }).join(", ");
+  const where = filterTerms(q.filters);
+
+  return [
+    "COPY (",
+    "  SELECT",
+    "    'FeatureCollection' AS type,",
+    `    coalesce(list(${feature} ORDER BY ${order}), []::JSON[]) AS features`,
+    `  FROM ${table}`,
+    where.length ? `  WHERE ${where.join("\n    AND ")}` : "",
+    `) TO ${text(path)} WITH (FORMAT JSON);`,
+  ]
+    .filter((line) => line !== "")
+    .join("\n");
+}
+
 /** Builds a query which exports data from the cache table to DuckBD's virtual fs */
 export function exportSQL(
   table: string,
@@ -117,6 +183,7 @@ export function exportSQL(
   path: string,
   sqlTypes: Map<string, string>,
 ): string {
+  if (format === "maproulette") return maprouletteSQL(table, q, path, sqlTypes);
   const spec = FORMATS[format];
   // USE_TMP_FILE false: DuckDB's atomic-COPY rename moves no bytes in wasm, and
   // registering the output path (which the GDAL drivers require) is what
