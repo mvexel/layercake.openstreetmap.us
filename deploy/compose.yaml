@@ -9,6 +9,11 @@ services:
       args:
         VITE_LAYERCAKE_DATA_URL: ${LAYERCAKE_DATA_URL:-https://layercake.osm.lol/utah}
         VITE_LAYERCAKE_MAP_VIEW: ${LAYERCAKE_MAP_VIEW:--111.7,39.4,6}
+        # Docs and layer pages exist only on the official site.
+        VITE_LAYERCAKE_SITE_URL: https://layercake.openstreetmap.us
+        VITE_LAYERCAKE_REPO_URL: https://github.com/mvexel/layercake
+        VITE_LAYERCAKE_UNOFFICIAL: "true"
+        VITE_LAYERCAKE_UNOFFICIAL_DETAIL: ${LAYERCAKE_UNOFFICIAL_DETAIL:-It covers Utah only and adds an other_tags column holding every tag that has no column of its own.}
     image: layercake-explorer:local
     # Built on the host, never pulled: Komodo runs `compose pull` before `up`.
     pull_policy: build

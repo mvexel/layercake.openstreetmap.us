@@ -79,6 +79,22 @@ body {
   outline-offset: 1px;
 }
 
+.unofficial-notice {
+  flex-shrink: 0;
+  padding: 0.6rem 0.75rem;
+  background: #ffd400;
+  color: var(--ink);
+  border-bottom: 3px solid var(--ink);
+  font-size: var(--text-md);
+  line-height: 1.4;
+}
+
+.unofficial-notice a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
 .header {
   display: flex;
   align-items: baseline;

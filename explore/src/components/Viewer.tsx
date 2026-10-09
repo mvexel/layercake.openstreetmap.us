@@ -1,4 +1,5 @@
 import type { Context } from "@b9g/crank";
+import { SITE_URL } from "../site.ts";
 import type { Store } from "../store.ts";
 import { DataTable } from "./DataTable.tsx";
 import { FilterBar } from "./FilterBar.tsx";
@@ -41,7 +42,8 @@ function TableBody({ store }: { store: Store }) {
     if (!store.catalog) return <LoadingState>Loading datasets</LoadingState>;
     return (
       <p class="empty-state">
-        Choose a dataset from the menu above, or <a href="/layers/">browse all layers</a>.
+        Choose a dataset from the menu above, or{" "}
+        <a href={`${SITE_URL}/layers/`}>browse all layers</a>.
       </p>
     );
   }

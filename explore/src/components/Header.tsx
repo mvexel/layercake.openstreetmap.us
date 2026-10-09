@@ -1,4 +1,5 @@
 import type { Context } from "@b9g/crank";
+import { REPO_URL, SITE_URL } from "../site.ts";
 import type { Store } from "../store.ts";
 import { formatRows } from "../ui/format.ts";
 
@@ -66,11 +67,11 @@ export function* Header(this: Context<HeaderProps, HTMLElement>, props: HeaderPr
             Data updated {store.updatedAt.toLocaleDateString(undefined, DATE_FORMAT)} &middot;
           </span>
         ) : null}
-        <a class="header-link" href="/docs/">
+        <a class="header-link" href={`${SITE_URL}/docs/`}>
           Docs
         </a>
         &middot;
-        <a class="header-link" href="https://github.com/osmus/layercake">
+        <a class="header-link" href={REPO_URL}>
           GitHub
         </a>
       </header>
