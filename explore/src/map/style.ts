@@ -62,7 +62,7 @@ const POINT_FILTER: FilterSpecification = [
 
 export const EXTENT_SOURCE_ID = "data-extent";
 
-/** Shading outside the data's bounds and an outline along them; drawn under the features. */
+/** Shading outside the data's extent and a line along its edge; drawn under the features. */
 export const EXTENT_LAYERS: (
   | Omit<FillLayerSpecification, "source">
   | Omit<LineLayerSpecification, "source">
@@ -70,11 +70,13 @@ export const EXTENT_LAYERS: (
   {
     id: "data-extent-mask",
     type: "fill",
+    filter: ["==", ["get", "role"], "mask"],
     paint: { "fill-color": "#000000", "fill-opacity": 0.12 },
   },
   {
     id: "data-extent-outline",
     type: "line",
+    filter: ["==", ["get", "role"], "outline"],
     paint: { "line-color": "#000000", "line-width": 1.5, "line-dasharray": [3, 2] },
   },
 ];

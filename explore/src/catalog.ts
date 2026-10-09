@@ -1,3 +1,4 @@
+import type { MultiPolygon, Position } from "geojson";
 import { type Bounds, type ColumnKind, type Layer, RESERVED_COLUMNS } from "./types.ts";
 
 const BASE_URL =
@@ -60,21 +61,26 @@ export interface Metadata {
   updatedAt: Date | null;
   /** Where the data is, on deployments that cover one region. */
   bounds: Bounds | null;
+  /** The region's outline, when the deployment publishes one along with its bounds. */
+  outline: MultiPolygon | null;
 }
 
 /** Read metadata.json; anything missing or malformed comes back null. */
 export async function loadMetadata(): Promise<Metadata> {
   try {
-    const { timestamp, bounds } = await getJSON<{ timestamp?: unknown; bounds?: unknown }>(
-      `${BASE_URL}/metadata.json`,
-    );
+    const { timestamp, bounds, outline } = await getJSON<{
+      timestamp?: unknown;
+      bounds?: unknown;
+      outline?: unknown;
+    }>(`${BASE_URL}/metadata.json`);
     const date = new Date(String(timestamp));
     return {
       updatedAt: Number.isNaN(date.valueOf()) ? null : date,
       bounds: parseBounds(bounds),
+      outline: parseOutline(outline),
     };
   } catch {
-    return { updatedAt: null, bounds: null };
+    return { updatedAt: null, bounds: null, outline: null };
   }
 }
 
@@ -84,6 +90,23 @@ export function parseBounds(value: unknown): Bounds | null {
   if (!value.every((n) => typeof n === "number" && Number.isFinite(n))) return null;
   const [xmin, ymin, xmax, ymax] = value as [number, number, number, number];
   return xmin < xmax && ymin < ymax ? { xmin, ymin, xmax, ymax } : null;
+}
+
+const isPosition = (p: unknown): p is Position =>
+  Array.isArray(p) && p.length >= 2 && p.every((n) => typeof n === "number" && Number.isFinite(n));
+
+const isRing = (ring: unknown) => Array.isArray(ring) && ring.length >= 4 && ring.every(isPosition);
+
+/** A GeoJSON MultiPolygon with well-formed rings, or null. */
+export function parseOutline(value: unknown): MultiPolygon | null {
+  if (typeof value !== "object" || value === null) return null;
+  const { type, coordinates } = value as { type?: unknown; coordinates?: unknown };
+  if (type !== "MultiPolygon" || !Array.isArray(coordinates) || coordinates.length === 0)
+    return null;
+  const valid = coordinates.every(
+    (polygon) => Array.isArray(polygon) && polygon.length > 0 && polygon.every(isRing),
+  );
+  return valid ? { type, coordinates: coordinates as Position[][][] } : null;
 }
 
 async function layerMetadata(id: LayerId): Promise<Layer> {

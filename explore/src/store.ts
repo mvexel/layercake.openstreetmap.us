@@ -1,3 +1,4 @@
+import type { MultiPolygon } from "geojson";
 import { FIRST_TAG_COLUMN_INDEX, loadCatalog, loadMetadata } from "./catalog.ts";
 import { DuckDB } from "./duckdb.ts";
 import { download } from "./export/download.ts";
@@ -41,6 +42,8 @@ export class Store {
   updatedAt: Date | null = null;
   /** Where the data is, when metadata.json says; the map is fitted and fenced to it. */
   dataBounds: Bounds | null = null;
+  /** The region's outline, drawn on the map when metadata.json has one. */
+  dataOutline: MultiPolygon | null = null;
   engine: Engine = "starting";
   /** Set once MapLibre has loaded; non-null means fully usable. */
   map: MapView | null = null;
@@ -90,10 +93,11 @@ export class Store {
       })
       .finally(() => this.notify());
 
-    loadMetadata().then(({ updatedAt, bounds }) => {
+    loadMetadata().then(({ updatedAt, bounds, outline }) => {
       this.updatedAt = updatedAt;
       this.dataBounds = bounds;
-      if (bounds) this.map?.showDataBounds(bounds);
+      this.dataOutline = outline;
+      if (bounds) this.map?.showDataBounds(bounds, outline);
       this.notify();
     });
 
@@ -193,7 +197,7 @@ export class Store {
 
   setMap(view: MapView) {
     this.map = view;
-    if (this.dataBounds) view.showDataBounds(this.dataBounds);
+    if (this.dataBounds) view.showDataBounds(this.dataBounds, this.dataOutline);
     this.notify();
   }
 

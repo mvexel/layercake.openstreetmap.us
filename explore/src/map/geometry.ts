@@ -1,6 +1,6 @@
 import turfArea from "@turf/area";
 import bboxPolygon from "@turf/bbox-polygon";
-import type { Feature as GeoJSONFeature, Polygon, Position } from "geojson";
+import type { FeatureCollection, MultiPolygon, Polygon, Position } from "geojson";
 import type { Bounds, Feature, Fid, SimpleGeometry } from "../types.ts";
 import { FID } from "../types.ts";
 
@@ -95,29 +95,44 @@ export function renderable(features: Feature[]): RenderFeature[] {
   return out;
 }
 
-/** The world with a hole where the data is: shades everything outside `bounds`. */
-export function outsideMask({ xmin, ymin, xmax, ymax }: Bounds): GeoJSONFeature<Polygon> {
+const WORLD: Position[] = [
+  [-180, -85],
+  [180, -85],
+  [180, 85],
+  [-180, 85],
+  [-180, -85],
+];
+
+/**
+ * What the map draws for the data's extent: a `mask` shading everything
+ * outside it and an `outline` along its edge. The extent is the region's
+ * outline when there is one, otherwise its bounding box.
+ */
+export function extentFeatures(
+  { xmin, ymin, xmax, ymax }: Bounds,
+  outline: MultiPolygon | null,
+): FeatureCollection<Polygon | MultiPolygon> {
+  const box: Position[] = [
+    [xmin, ymin],
+    [xmin, ymax],
+    [xmax, ymax],
+    [xmax, ymin],
+    [xmin, ymin],
+  ];
+  const region = outline ?? { type: "MultiPolygon" as const, coordinates: [[box]] };
+  // The world with a hole for each polygon's outer ring, plus the region's own
+  // holes filled back in: they are outside the data too.
+  const outers = region.coordinates.map((polygon) => polygon[0] ?? []);
+  const holes = region.coordinates.flatMap((polygon) => polygon.slice(1).map((ring) => [ring]));
   return {
-    type: "Feature",
-    properties: {},
-    geometry: {
-      type: "Polygon",
-      coordinates: [
-        [
-          [-180, -85],
-          [180, -85],
-          [180, 85],
-          [-180, 85],
-          [-180, -85],
-        ],
-        [
-          [xmin, ymin],
-          [xmin, ymax],
-          [xmax, ymax],
-          [xmax, ymin],
-          [xmin, ymin],
-        ],
-      ],
-    },
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: { role: "mask" },
+        geometry: { type: "MultiPolygon", coordinates: [[WORLD, ...outers], ...holes] },
+      },
+      { type: "Feature", properties: { role: "outline" }, geometry: region },
+    ],
   };
 }

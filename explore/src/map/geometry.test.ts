@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type Feature, FID, type SimpleGeometry } from "../types.ts";
-import { bbox, collapseZoom, outsideMask, renderable } from "./geometry.ts";
+import { bbox, collapseZoom, extentFeatures, renderable } from "./geometry.ts";
 
 const feature = (fid: number, geometry: SimpleGeometry): Feature => ({
   type: "Feature",
@@ -81,15 +81,44 @@ describe("renderable", () => {
 describe("data bounds", () => {
   const UTAH = { xmin: -114, ymin: 37, xmax: -109, ymax: 42 };
 
-  it("masks the world with a hole at the bounds", () => {
-    const [outer, hole] = outsideMask(UTAH).geometry.coordinates;
-    expect(outer).toHaveLength(5);
-    expect(hole).toEqual([
+  it("masks the world outside the bounding box without an outline", () => {
+    const { features } = extentFeatures(UTAH, null);
+    const [mask, outline] = features;
+    expect(mask?.properties).toEqual({ role: "mask" });
+    expect(mask?.geometry.coordinates[0]?.[1]).toEqual([
       [-114, 37],
       [-114, 42],
       [-109, 42],
       [-109, 37],
       [-114, 37],
     ]);
+    expect(outline?.properties).toEqual({ role: "outline" });
+  });
+
+  it("follows the outline and shades its holes", () => {
+    const outer = [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+      [0, 10],
+      [0, 0],
+    ];
+    const hole = [
+      [4, 4],
+      [6, 4],
+      [6, 6],
+      [4, 6],
+      [4, 4],
+    ];
+    const region = { type: "MultiPolygon" as const, coordinates: [[outer, hole]] };
+    const [mask, outline] = extentFeatures(
+      { xmin: 0, ymin: 0, xmax: 10, ymax: 10 },
+      region,
+    ).features;
+    // world minus the outer ring, plus the hole as its own shaded polygon
+    expect(mask?.geometry.coordinates).toHaveLength(2);
+    expect(mask?.geometry.coordinates[0]?.[1]).toEqual(outer);
+    expect(mask?.geometry.coordinates[1]).toEqual([hole]);
+    expect(outline?.geometry).toBe(region);
   });
 });

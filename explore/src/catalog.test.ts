@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { columnKind, parseBounds, type SchemaField } from "./catalog.ts";
+import { columnKind, parseBounds, parseOutline, type SchemaField } from "./catalog.ts";
 
 const list = (element: SchemaField): SchemaField => ({
   name: "names",
@@ -85,5 +85,27 @@ describe("parseBounds", () => {
     expect(parseBounds([0, 0, "1", 1])).toBeNull();
     expect(parseBounds([1, 0, 0, 1])).toBeNull();
     expect(parseBounds([0, 0, Number.NaN, 1])).toBeNull();
+  });
+});
+
+describe("parseOutline", () => {
+  const ring = [
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [0, 0],
+  ];
+
+  it("accepts a MultiPolygon", () => {
+    const outline = { type: "MultiPolygon", coordinates: [[ring]] };
+    expect(parseOutline(outline)).toEqual(outline);
+  });
+
+  it("rejects anything else", () => {
+    expect(parseOutline(undefined)).toBeNull();
+    expect(parseOutline({ type: "Polygon", coordinates: [ring] })).toBeNull();
+    expect(parseOutline({ type: "MultiPolygon", coordinates: [] })).toBeNull();
+    expect(parseOutline({ type: "MultiPolygon", coordinates: [[ring.slice(0, 3)]] })).toBeNull();
+    expect(parseOutline({ type: "MultiPolygon", coordinates: [[[[0, "x"], ...ring]]] })).toBeNull();
   });
 });

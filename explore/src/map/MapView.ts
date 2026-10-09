@@ -1,4 +1,4 @@
-import type { FeatureCollection } from "geojson";
+import type { FeatureCollection, MultiPolygon } from "geojson";
 import maplibregl from "maplibre-gl";
 import {
   TerraDraw,
@@ -9,7 +9,7 @@ import {
 import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
 import type { SimpleGeometry } from "../types.ts";
 import { type Area, type Bounds, type DrawTool, type Feature, FID, type Fid } from "../types.ts";
-import { bbox, outsideMask, renderable } from "./geometry.ts";
+import { bbox, extentFeatures, renderable } from "./geometry.ts";
 import {
   BASEMAP,
   DRAW_STYLES,
@@ -170,12 +170,16 @@ export class MapView {
   }
 
   /**
-   * Show where the data is: shade the map outside `bounds`, open on them
-   * unless the URL named a position, and fence the view to them.
+   * Show where the data is: shade the map outside the region's outline (or
+   * its bounds, without one), open on the bounds unless the URL named a
+   * position, and fence the view to them.
    */
-  showDataBounds(bounds: Bounds) {
+  showDataBounds(bounds: Bounds, outline: MultiPolygon | null) {
     if (this.map.getSource(EXTENT_SOURCE_ID)) return;
-    this.map.addSource(EXTENT_SOURCE_ID, { type: "geojson", data: outsideMask(bounds) });
+    this.map.addSource(EXTENT_SOURCE_ID, {
+      type: "geojson",
+      data: extentFeatures(bounds, outline),
+    });
     const firstFeatureLayer = FEATURE_LAYERS[0]?.id;
     for (const layer of EXTENT_LAYERS) {
       this.map.addLayer({ ...layer, source: EXTENT_SOURCE_ID }, firstFeatureLayer);

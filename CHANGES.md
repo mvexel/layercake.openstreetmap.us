@@ -29,8 +29,9 @@ The Jekyll docs site is not deployed; its links point to the official site.
   bar shows them as one expression with parentheses, notes that this differs
   from SQL, where AND binds first, and that a filter never matches rows missing
   its value, linking to DuckDB's docs on logical operators and NULL.
-- **Data bounds on the map.** When `metadata.json` has `bounds`, the map shades
-  everything outside them, opens fitted to them unless the URL names a
+- **Data extent on the map.** When `metadata.json` has `bounds`, the map shades
+  everything outside the region (its `outline` when published, else the
+  bounds), draws a dashed line along its edge, opens fitted to them unless the URL names a
   position, and allows zooming out one level and panning until their edge
   reaches the middle of the screen (`explore/src/map/MapView.ts`). Without
   `bounds`, as on data.openstreetmap.us, nothing changes.
