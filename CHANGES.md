@@ -14,7 +14,7 @@ that commit:
 Only the explorer (`explore/`) is changed and deployed, at
 [layercake.osm.lol/explore/](https://layercake.osm.lol/explore/), reading the
 daily Utah build from
-[the Layercake fork](https://github.com/mvexel/layercake/blob/komodo/CHANGES.md).
+[the Layercake fork](https://github.com/mvexel/layercake/blob/osm.lol/CHANGES.md).
 The Jekyll docs site is not deployed; its links point to the official site.
 
 ## Explorer features
