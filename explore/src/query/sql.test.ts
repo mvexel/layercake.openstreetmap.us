@@ -9,6 +9,7 @@ const URL = "https://example.com/buildings.parquet";
 const complete = (over: Partial<Filter>): CompleteFilter => {
   const f: Filter = {
     id: 0,
+    join: "and",
     column: "name",
     kind: { kind: "text" },
     operator: "=",

@@ -6,16 +6,37 @@ function FilterRow({
   store,
   filter,
   columns,
+  first,
 }: {
   store: Store;
   filter: Filter;
   columns: string[];
+  first: boolean;
 }) {
   const operators = operatorsFor(filter.kind);
   const operator = operators.find((o) => o.id === filter.operator);
 
   return (
     <div class="filter-row">
+      {first ? null : (
+        <select
+          class="filter-join"
+          title="OR groups a filter with the one before it; AND applies between groups"
+          onchange={(ev: Event) =>
+            store.updateFilter(filter.id, {
+              join: (ev.target as HTMLSelectElement).value as Filter["join"],
+            })
+          }
+        >
+          <option value="and" selected={filter.join === "and"}>
+            and
+          </option>
+          <option value="or" selected={filter.join === "or"}>
+            or
+          </option>
+        </select>
+      )}
+
       <select
         onchange={(ev: Event) =>
           store.updateFilter(filter.id, { column: (ev.target as HTMLSelectElement).value })
@@ -86,8 +107,14 @@ export function FilterBar({ store }: { store: Store }) {
 
   return (
     <div class="filter-bar">
-      {session.filters.map((filter) => (
-        <FilterRow key={filter.id} store={store} filter={filter} columns={session.layer.columns} />
+      {session.filters.map((filter, index) => (
+        <FilterRow
+          key={filter.id}
+          store={store}
+          filter={filter}
+          columns={session.layer.columns}
+          first={index === 0}
+        />
       ))}
     </div>
   );

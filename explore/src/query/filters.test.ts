@@ -11,6 +11,7 @@ const LIST_MAP: ColumnKind = { kind: "map", value: TEXT_LIST };
 
 const filter = (over: Partial<Filter> = {}): Filter => ({
   id: 0,
+  join: "and",
   column: "name",
   kind: TEXT,
   operator: "=",
@@ -135,5 +136,41 @@ describe("operators offered", () => {
   it("only asks for a key on map columns", () => {
     expect(needsKey(TEXT_MAP)).toBe(true);
     expect(needsKey(TEXT_LIST)).toBe(false);
+  });
+});
+
+describe("combining filters", () => {
+  const complete = (...filters: Filter[]) => {
+    if (!filters.every(filterComplete)) throw new Error("filter is incomplete");
+    return filterTerms(filters);
+  };
+  const cafe = filter({ column: "amenity", value: "cafe" });
+  const restaurant = filter({ column: "amenity", value: "restaurant", join: "or" });
+  const wheelchair = filter({ column: "wheelchair", value: "yes" });
+
+  it("keeps AND-joined filters as separate terms", () => {
+    expect(complete(cafe, wheelchair)).toEqual([`"amenity" = 'cafe'`, `"wheelchair" = 'yes'`]);
+  });
+
+  it("groups OR-joined filters with the filter before them", () => {
+    expect(complete(cafe, restaurant, wheelchair)).toEqual([
+      `("amenity" = 'cafe' OR "amenity" = 'restaurant')`,
+      `"wheelchair" = 'yes'`,
+    ]);
+  });
+
+  it("starts a new group after an AND", () => {
+    const blind = filter({ column: "wheelchair", value: "limited", join: "or" });
+    expect(complete(cafe, restaurant, wheelchair, blind)).toEqual([
+      `("amenity" = 'cafe' OR "amenity" = 'restaurant')`,
+      `("wheelchair" = 'yes' OR "wheelchair" = 'limited')`,
+    ]);
+  });
+
+  it("treats a leading OR as the start of a group", () => {
+    expect(complete(restaurant, wheelchair)).toEqual([
+      `"amenity" = 'restaurant'`,
+      `"wheelchair" = 'yes'`,
+    ]);
   });
 });

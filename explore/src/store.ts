@@ -32,7 +32,7 @@ const painted = () =>
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 type Engine = "starting" | "ready" | { error: Error };
-type FilterChanges = Partial<Pick<Filter, "column" | "operator" | "key" | "value">>;
+type FilterChanges = Partial<Pick<Filter, "join" | "column" | "operator" | "key" | "value">>;
 
 export class Store {
   catalog: Record<string, Layer> | null = null;
@@ -464,7 +464,15 @@ export class Store {
 
     s.filters = [
       ...s.filters,
-      { id: nextFilterId++, column, kind, operator: defaultOperator(kind), key: "", value: "" },
+      {
+        id: nextFilterId++,
+        join: "and",
+        column,
+        kind,
+        operator: defaultOperator(kind),
+        key: "",
+        value: "",
+      },
     ];
     this.scheduleRefresh();
     this.notify();

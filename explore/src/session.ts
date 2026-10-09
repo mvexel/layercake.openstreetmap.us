@@ -44,7 +44,9 @@ export class Session {
   }
 
   get filterKey(): string {
-    return JSON.stringify(this.activeFilters.map((f) => [f.column, f.operator, f.key, f.value]));
+    return JSON.stringify(
+      this.activeFilters.map((f) => [f.join, f.column, f.operator, f.key, f.value]),
+    );
   }
 
   get resultKey(): string {

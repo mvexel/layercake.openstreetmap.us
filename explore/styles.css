@@ -447,6 +447,10 @@ input[type="text"]:hover {
   color: var(--ink-muted);
 }
 
+.filter-join {
+  color: var(--ink-muted);
+}
+
 .filter-remove {
   padding: 0 0.3rem;
   font-size: var(--text-lg);

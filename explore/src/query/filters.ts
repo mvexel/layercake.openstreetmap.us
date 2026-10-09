@@ -147,6 +147,18 @@ export function filterComplete(filter: Filter): filter is CompleteFilter {
   return !numeric || Number.isFinite(Number(value));
 }
 
+/**
+ * Compile filters to WHERE terms, which the caller ANDs together. A filter
+ * joined with "or" adds to the previous filter's group, so each term is one
+ * group of alternatives: `a OR b AND c` compiles to `(a OR b)` and `c`.
+ */
 export function filterTerms(filters: CompleteFilter[]): string[] {
-  return filters.map((filter) => OPERATORS[filter.operator].term(filter));
+  const groups: string[][] = [];
+  for (const filter of filters) {
+    const term = OPERATORS[filter.operator].term(filter);
+    const group = groups.at(-1);
+    if (filter.join === "or" && group) group.push(term);
+    else groups.push([term]);
+  }
+  return groups.map((group) => (group.length === 1 ? group.join("") : `(${group.join(" OR ")})`));
 }

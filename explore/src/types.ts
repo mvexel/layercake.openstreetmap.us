@@ -42,8 +42,16 @@ export type OperatorId =
   | "is null"
   | "is not null";
 
+/**
+ * How a filter combines with the one before it. OR binds tighter than AND, so
+ * `a OR b AND c` reads `(a OR b) AND c`: alternatives for one condition sit
+ * next to each other.
+ */
+export type Join = "and" | "or";
+
 export type Filter = {
   id: number;
+  join: Join;
   column: string;
   kind: ColumnKind;
   operator: OperatorId;
