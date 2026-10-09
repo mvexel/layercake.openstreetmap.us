@@ -147,18 +147,48 @@ export function filterComplete(filter: Filter): filter is CompleteFilter {
   return !numeric || Number.isFinite(Number(value));
 }
 
+/** Each run of OR-joined filters, in order: the groups that are ANDed together. */
+function orGroups(filters: CompleteFilter[]): CompleteFilter[][] {
+  const groups: CompleteFilter[][] = [];
+  for (const filter of filters) {
+    const group = groups.at(-1);
+    if (filter.join === "or" && group) group.push(filter);
+    else groups.push([filter]);
+  }
+  return groups;
+}
+
 /**
  * Compile filters to WHERE terms, which the caller ANDs together. A filter
  * joined with "or" adds to the previous filter's group, so each term is one
  * group of alternatives: `a OR b AND c` compiles to `(a OR b)` and `c`.
  */
 export function filterTerms(filters: CompleteFilter[]): string[] {
-  const groups: string[][] = [];
-  for (const filter of filters) {
-    const term = OPERATORS[filter.operator].term(filter);
-    const group = groups.at(-1);
-    if (filter.join === "or" && group) group.push(term);
-    else groups.push([term]);
-  }
-  return groups.map((group) => (group.length === 1 ? group.join("") : `(${group.join(" OR ")})`));
+  return orGroups(filters).map((group) => {
+    const terms = group.map((filter) => OPERATORS[filter.operator].term(filter));
+    return terms.length === 1 ? terms.join("") : `(${terms.join(" OR ")})`;
+  });
+}
+
+function describe({ column, key, kind, operator, value }: CompleteFilter): string {
+  const target = needsKey(kind) ? `${column}.${key}` : column;
+  return OPERATORS[operator].needsValue
+    ? `${target} ${operator} ${value}`
+    : `${target} ${operator}`;
+}
+
+/**
+ * The filters as one readable expression with the grouping spelled out, e.g.
+ * `(amenity = cafe or amenity = bar) and wheelchair = yes`. Null unless the
+ * filters mix "and" and "or", the only case where the grouping is in doubt.
+ */
+export function filterSummary(filters: CompleteFilter[]): string | null {
+  const groups = orGroups(filters);
+  if (groups.length < 2 || groups.every((group) => group.length === 1)) return null;
+  return groups
+    .map((group) => {
+      const parts = group.map(describe);
+      return parts.length === 1 ? parts.join("") : `(${parts.join(" or ")})`;
+    })
+    .join(" and ");
 }
