@@ -1,6 +1,7 @@
 import { type ColumnKind, type Layer, RESERVED_COLUMNS } from "./types.ts";
 
-const BASE_URL = "https://data.openstreetmap.us/layercake";
+const BASE_URL =
+  import.meta.env.VITE_LAYERCAKE_DATA_URL ?? "https://data.openstreetmap.us/layercake";
 
 export const LAYER_IDS = [
   "addresses",

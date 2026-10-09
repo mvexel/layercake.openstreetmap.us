@@ -1,0 +1,10 @@
+# Serves the explorer build on :80 under /explore/ (plain HTTP on the internal
+# network); TLS and the public hostname are handled by the shared Caddy.
+:80 {
+	root * /srv
+	encode gzip
+	redir / /explore/
+	# index.html names the bundle without a hash, so nothing may be cached long.
+	header Cache-Control "no-cache"
+	file_server
+}

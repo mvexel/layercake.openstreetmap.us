@@ -12,6 +12,14 @@ import { type Area, type Bounds, type DrawTool, type Feature, FID, type Fid } fr
 import { bbox, renderable } from "./geometry.ts";
 import { BASEMAP, DRAW_STYLES, FEATURE_LAYERS, POLYGON_DRAW_STYLES, SOURCE_ID } from "./style.ts";
 
+/** The contiguous US unless the build sets VITE_LAYERCAKE_MAP_VIEW ("lng,lat,zoom"). */
+const INITIAL_VIEW = ((): [number, number, number] => {
+  const view = (import.meta.env.VITE_LAYERCAKE_MAP_VIEW ?? "").split(",").map(Number);
+  return view.length === 3 && view.every(Number.isFinite)
+    ? (view as [number, number, number])
+    : [-98.5795, 39.8283, 4];
+})();
+
 // click target size (half the box width/height)
 const HIT_RADIUS = 6;
 
@@ -43,8 +51,8 @@ export class MapView {
     const map = new maplibregl.Map({
       container,
       style: BASEMAP,
-      center: [-98.5795, 39.8283],
-      zoom: 4,
+      center: [INITIAL_VIEW[0], INITIAL_VIEW[1]],
+      zoom: INITIAL_VIEW[2],
       hash: true,
       // Clicking the same spot repeatedly cycles through the features under
       // the cursor; disable double-click-to-zoom so it doesn't collide.

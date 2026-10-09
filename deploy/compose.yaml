@@ -1,0 +1,25 @@
+# Komodo stack `layercake-explorer`. Builds the explorer against the Layercake
+# host in LAYERCAKE_DATA_URL and joins the shared ingress network as
+# `layercake-explorer`; the shared Caddy proxies
+# https://layercake.osm.lol/explore/ to layercake-explorer:80.
+services:
+  layercake-explorer:
+    build:
+      context: ..
+      args:
+        VITE_LAYERCAKE_DATA_URL: ${LAYERCAKE_DATA_URL:-https://layercake.osm.lol/utah}
+        VITE_LAYERCAKE_MAP_VIEW: ${LAYERCAKE_MAP_VIEW:--111.7,39.4,6}
+    image: layercake-explorer:local
+    # Built on the host, never pulled: Komodo runs `compose pull` before `up`.
+    pull_policy: build
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/explore/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks: [ingress]
+networks:
+  ingress:
+    name: schaaltreinenhuis-ingress
+    external: true
